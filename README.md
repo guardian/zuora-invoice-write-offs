@@ -7,6 +7,7 @@ At the end of this process, users will not be charged for any old invoices. They
 
 ## Getting started
 
-1. Set the following configuration values as environment variables: `ZuoraUser`, `ZuoraPass`, `ZuoraUrl` 
-2. Use `sbt run` to start the script.
-3. Check the log file for failures/successes.
+1. Add an input.csv file with a list of account ids for processing.
+2. Set the following configuration values as environment variables: `ZuoraUser`, `ZuoraPass`, `ZuoraUrl` 
+3. Use `sbt run` to start the script.
+4. Check the log file for failures/successes.
