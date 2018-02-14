@@ -13,9 +13,11 @@ project/plugins/project/
 .scala_dependencies
 .worksheet
 target/
+logs/
 lib_managed/
 src_managed/
 project/boot/
 .history
 .cache
+.DS_Store
 *.csv
