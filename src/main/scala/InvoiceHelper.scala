@@ -19,19 +19,28 @@ object InvoiceHelper extends App with Logging {
 
   def collectAdjustments(accountId: String, invoices: List[Invoice]): String \/ List[InvoiceItemAdjustment] = {
     val adjustments = invoices.map { invoice =>
-      { val chargeAdjustments = invoice.invoiceItems.map { invoiceItem =>
-          buildChargeAdjustment(invoice, invoiceItem)
+      val positiveCharges = invoice.invoiceItems.filter(_.chargeAmount > 0)
+      val negativeCharges = invoice.invoiceItems.filter(_.chargeAmount < 0)
+      val chargeAdjustments = {
+        val chargeTuples = positiveCharges.zipAll(negativeCharges.map(discount => Some(discount)), positiveCharges.maxBy(_.chargeAmount), None)
+        chargeTuples.map { chargeAndDiscount => buildChargeAdjustment(invoice, chargeAndDiscount._1, chargeAndDiscount._2) }
+      }
+      val taxQuery = getTaxationItemDetails(accountId, invoice)
+      taxQuery match {
+        case \/-(taxationItems) => {
+          val positiveTaxAmounts = taxationItems.filter(taxItem => taxItem.taxAmount > 0)
+          val negativeTaxAmounts = taxationItems.filter(taxItem => taxItem.taxAmount < 0)
+          val taxAdjustments = {
+            if (positiveTaxAmounts.nonEmpty) {
+              val taxTuples = positiveTaxAmounts.zipAll(negativeTaxAmounts.map(taxDiscount => Some(taxDiscount)), positiveTaxAmounts.maxBy(_.taxAmount), None)
+              taxTuples.map { taxChargeAndDiscount => buildTaxAdjustment(invoice, taxChargeAndDiscount._1, taxChargeAndDiscount._2) }
+            } else List()
+          }
+          val allAdjustments = taxAdjustments ++ chargeAdjustments
+          allAdjustments.right
         }
-        val taxQuery = getTaxationItemDetails(accountId, invoice)
-        taxQuery match {
-          case \/-(taxationItems) => {
-            // Need to filter out 0s because of US membership (which has 0% tax) - otherwise we try to make an adjustment of 0.00, which fails
-            val taxAdjustments = taxationItems.filter(taxItem => taxItem.taxAmount > 0).map(item => buildTaxAdjustment(invoice, item))
-            (taxAdjustments ++ chargeAdjustments).right
-          }
-          case -\/(error) => {
-            s"Failed to obtain tax adjustment details: $error".left
-          }
+        case -\/(error) => {
+          s"Failed to obtain tax adjustment details: $error".left
         }
       }
     }
@@ -40,18 +49,32 @@ object InvoiceHelper extends App with Logging {
     if (failures.isEmpty) allAdjustments.right else s"Failed when gathering adjustments: $failures".left
   }
 
-  def buildChargeAdjustment(invoice: Invoice, invoiceItem: InvoiceItem): InvoiceItemAdjustment = {
+  def buildChargeAdjustment(invoice: Invoice, positiveCharge: InvoiceItem, negativeCharge: Option[InvoiceItem]): InvoiceItemAdjustment = {
+    val amount = negativeCharge match {
+      case Some(discount) => {
+        logger.info(s"Found a discount of ${discount.chargeAmount}")
+        positiveCharge.chargeAmount + discount.chargeAmount
+      }
+      case None => positiveCharge.chargeAmount
+    }
     InvoiceItemAdjustment(
-      amount = invoiceItem.chargeAmount,
+      amount = amount,
       invoice = invoice,
       sourceType = "InvoiceDetail",
-      sourceId = invoiceItem.id
+      sourceId = positiveCharge.id
     )
   }
 
-  def buildTaxAdjustment(invoice: Invoice, taxationItem: TaxationItem): InvoiceItemAdjustment = {
+  def buildTaxAdjustment(invoice: Invoice, taxationItem: TaxationItem, negativeTax: Option[TaxationItem]): InvoiceItemAdjustment = {
+    val amount = negativeTax match {
+      case Some(taxDiscount) => {
+        logger.info(s"Found a tax discount of ${taxDiscount.taxAmount}")
+        taxationItem.taxAmount + taxDiscount.taxAmount
+      }
+      case None => taxationItem.taxAmount
+    }
     InvoiceItemAdjustment(
-      amount = taxationItem.taxAmount,
+      amount = amount,
       invoice = invoice,
       sourceType = "Tax",
       sourceId = taxationItem.id
