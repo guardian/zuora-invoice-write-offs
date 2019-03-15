@@ -92,16 +92,18 @@ object InvoiceHelper extends App with Logging {
   def prepareForPayment(accountId: String) = for {
     account <- getAccountSummary(accountId)
     reset <- resetFailedPaymentsCounter(accountId, account.basicInfo.defaultPaymentMethod)
-    autoPay <- turnOnAutoPay(accountId)
+    autoPay <- toggleAutopay(accountId, true)
   } yield autoPay
 
   def processAccount(accountId: String): Unit = {
     val result = for {
       invoices <- invoicesToProcess(accountId)
       adjustments <- collectAdjustments(accountId, invoices)
-      _ <- processAdjustments(accountId, adjustments)
-      paymentPrep <- prepareForPayment(accountId)
-    } yield paymentPrep
+      adjustInvoices <- processAdjustments(accountId, adjustments)
+      turnOffAutoPay <- toggleAutopay(accountId, false)
+      result <- clearDefaultPaymentMethod(accountId)
+//      result <- prepareForPayment(accountId)
+    } yield result
     result match {
       case \/-(successfulUpdate) => logSuccessfulResult(accountId)
       case -\/(error) => logFailureResult(accountId, error)
