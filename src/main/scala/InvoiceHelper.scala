@@ -97,11 +97,10 @@ object InvoiceHelper extends App with Logging {
 
   def processAccount(accountId: String): Unit = {
     val result = for {
-      clearDefault <- clearDefaultPaymentMethod(accountId)
       invoices <- invoicesToProcess(accountId)
       adjustments <- collectAdjustments(accountId, invoices)
-      result <- processAdjustments(accountId, adjustments)
-//      result <- prepareForPayment(accountId)
+      _ <- processAdjustments(accountId, adjustments)
+      paymentPrep <- prepareForPayment(accountId)
     } yield result
     result match {
       case \/-(successfulUpdate) => logSuccessfulResult(accountId)
