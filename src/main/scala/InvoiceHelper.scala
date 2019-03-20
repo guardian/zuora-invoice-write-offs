@@ -92,7 +92,7 @@ object InvoiceHelper extends App with Logging {
   def prepareForPayment(accountId: String) = for {
     account <- getAccountSummary(accountId)
     reset <- resetFailedPaymentsCounter(accountId, account.basicInfo.defaultPaymentMethod)
-    autoPay <- turnOnAutopay(accountId, true)
+    autoPay <- turnOnAutopay(accountId)
   } yield autoPay
 
   def processAccount(accountId: String): Unit = {
@@ -101,7 +101,7 @@ object InvoiceHelper extends App with Logging {
       adjustments <- collectAdjustments(accountId, invoices)
       _ <- processAdjustments(accountId, adjustments)
       paymentPrep <- prepareForPayment(accountId)
-    } yield result
+    } yield paymentPrep
     result match {
       case \/-(successfulUpdate) => logSuccessfulResult(accountId)
       case -\/(error) => logFailureResult(accountId, error)
