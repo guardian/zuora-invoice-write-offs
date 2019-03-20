@@ -55,7 +55,7 @@ object ZuoraService extends Logging {
 
   case class UpdateDefaultPaymentMethod(consecutiveFailureCount: Int)
 
-  case class UpdateDefaultPaymentMethodResult(success: Boolean)
+  case class UpdateResult(success: Boolean)
 
   implicit val invoiceItemReads: Reads[InvoiceItem] = (
     (JsPath \ "id").read[String] and
@@ -112,8 +112,8 @@ object ZuoraService extends Logging {
     success => UpdateAccountResult(success)
   }
 
-  implicit val updateDefaultPaymentMethodResultReads: Reads[UpdateDefaultPaymentMethodResult] = (JsPath \ "Success").read[Boolean].map {
-    success => UpdateDefaultPaymentMethodResult(success)
+  implicit val updateResultReads: Reads[UpdateResult] = (JsPath \ "Success").read[Boolean].map {
+    success => UpdateResult(success)
   }
 
   implicit val taxationItemQueryWrites = new Writes[TaxationItemQuery] {
@@ -203,24 +203,51 @@ object ZuoraService extends Logging {
     convertResponseToCaseClass[CreateInvoiceItemAdjustmentResult](accountId, response)
   }
 
-  def turnOnAutoPay(accountId: String): String \/ UpdateAccountResult = {
+  def turnOnAutoPay(accountId: String): String \/ Unit = {
     val accountUpdate = AccountUpdate(autoPay = true)
     logInfo(accountId, s"attempting to turn on autoPay with the following command: $accountUpdate")
     val body = RequestBody.create(MediaType.parse("application/json"), Json.toJson(accountUpdate).toString)
     val request = buildRequest(config, s"accounts/${accountId}").put(body).build()
     val call = restClient.newCall(request)
     val response = call.execute
-    convertResponseToCaseClass[UpdateAccountResult](accountId, response)
+    convertResponseToCaseClass[UpdateAccountResult](accountId, response) match {
+      case \/-(result) => if (result.success) { \/-(()) } else { -\/("Zuora result indicated a failure when attempting to toggle autopay") }
+      case -\/(error) => -\/(error)
+    }
   }
 
-  def resetFailedPaymentsCounter(accountId: String, defaultPaymentMethod: DefaultPaymentMethod): String \/ UpdateDefaultPaymentMethodResult = {
+  def resetFailedPaymentsCounter(accountId: String, defaultPaymentMethod: DefaultPaymentMethod): String \/ Unit = {
     val update = UpdateDefaultPaymentMethod(consecutiveFailureCount = 0)
     logInfo(accountId, s"attempting to update default payment method with the following details: ${update}")
     val body = RequestBody.create(MediaType.parse("application/json"), Json.toJson(update).toString)
     val request = buildRequest(config, s"object/payment-method/${defaultPaymentMethod.id}").put(body).build()
     val call = restClient.newCall(request)
     val response = call.execute
-    convertResponseToCaseClass[UpdateDefaultPaymentMethodResult](accountId, response)
+    convertResponseToCaseClass[UpdateResult](accountId, response) match {
+      case \/-(result) => if (result.success) { \/-(()) } else { -\/("Zuora result indicated a failure when attempting to reset failed payments counter") }
+      case -\/(error) => -\/(error)
+    }
+  }
+
+  def clearDefaultPaymentMethod(accountId: String): String \/ Unit = {
+    logInfo(accountId, s"attempting to clear default payment method")
+    val json = Json.obj(
+      "objects" -> Json.arr(
+        Json.obj(
+          "fieldsToNull" -> Json.arr("DefaultPaymentMethodId"),
+          "Id" -> accountId
+        )
+      ),
+      "type" -> "Account"
+    )
+    val body = RequestBody.create(MediaType.parse("application/json"), json.toString)
+    val request = buildRequest(config, s"action/update").put(body).build()
+    val call = restClient.newCall(request)
+    val response = call.execute
+    convertResponseToCaseClass[List[UpdateResult]](accountId, response).map(_.head)  match {
+      case \/-(result) => if (result.success) { \/-(()) } else { -\/("Zuora result indicated a failure when attempting to clear the default payment method") }
+      case -\/(error) => -\/(error)
+    }
   }
 
 }
