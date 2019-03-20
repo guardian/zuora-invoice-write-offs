@@ -203,8 +203,8 @@ object ZuoraService extends Logging {
     convertResponseToCaseClass[CreateInvoiceItemAdjustmentResult](accountId, response)
   }
 
-  def toggleAutopay(accountId: String, newAutoPayValue: Boolean): String \/ Unit = {
-    val accountUpdate = AccountUpdate(autoPay = newAutoPayValue)
+  def turnOnAutopay(accountId: String): String \/ Unit = {
+    val accountUpdate = AccountUpdate(autoPay = true)
     logInfo(accountId, s"attempting to turn on autoPay with the following command: $accountUpdate")
     val body = RequestBody.create(MediaType.parse("application/json"), Json.toJson(accountUpdate).toString)
     val request = buildRequest(config, s"accounts/${accountId}").put(body).build()
