@@ -27,13 +27,17 @@ object ZuoraService extends Logging {
       .url(s"${config.baseUrl}/$route")
   }
 
+  case class Account(AutoPay: Boolean)
+
   case class InvoiceTransactionSummary(invoices: List[Invoice], success: Boolean)
+
+  case class Subscription(subscriptionNumber: String, status: String)
 
   case class DefaultPaymentMethod(id: String, paymentMethodType: String)
 
   case class BasicAccountInfo(id: String, balance: Double, defaultPaymentMethod: DefaultPaymentMethod)
 
-  case class AccountSummary(basicInfo: BasicAccountInfo, success: Boolean)
+  case class AccountSummary(basicInfo: BasicAccountInfo, subscriptions: List[Subscription], success: Boolean)
 
   case class Invoice(id: String, invoiceNumber: String, amount: Double, balance: Double, status: String, invoiceItems: List[InvoiceItem])
 
@@ -51,11 +55,22 @@ object ZuoraService extends Logging {
 
   case class AccountUpdate(autoPay: Boolean)
 
-  case class UpdateAccountResult(success: Boolean)
-
   case class UpdateDefaultPaymentMethod(consecutiveFailureCount: Int)
 
   case class UpdateResult(success: Boolean)
+
+  case class UpdateAccountResult(success: Boolean)
+
+  case class CancelResult(success: Boolean)
+
+  implicit val subscriptionReads: Reads[Subscription] = (
+    (JsPath \ "subscriptionNumber").read[String] and
+    (JsPath \ "status").read[String]
+  )(Subscription.apply _)
+
+  implicit val accountReads: Reads[Account] = (JsPath \ "AutoPay").read[Boolean].map {
+    autoPay => Account(autoPay)
+  }
 
   implicit val invoiceItemReads: Reads[InvoiceItem] = (
     (JsPath \ "id").read[String] and
@@ -90,6 +105,7 @@ object ZuoraService extends Logging {
 
   implicit val accountSummaryReads: Reads[AccountSummary] = (
     (JsPath \ "basicInfo").read[BasicAccountInfo] and
+    (JsPath \ "subscriptions").read[List[Subscription]] and
     (JsPath \ "success").read[Boolean]
   )(AccountSummary.apply _)
 
@@ -110,6 +126,10 @@ object ZuoraService extends Logging {
 
   implicit val updateAccountResultReads: Reads[UpdateAccountResult] = (JsPath \ "success").read[Boolean].map {
     success => UpdateAccountResult(success)
+  }
+
+  implicit val cancelResultReads: Reads[CancelResult] = (JsPath \ "success").read[Boolean].map {
+    success => CancelResult(success)
   }
 
   implicit val updateResultReads: Reads[UpdateResult] = (JsPath \ "Success").read[Boolean].map {
@@ -171,6 +191,14 @@ object ZuoraService extends Logging {
     val call = restClient.newCall(request)
     val response = call.execute
     convertResponseToCaseClass[InvoiceTransactionSummary](accountId, response)
+  }
+
+  def getAccount(accountId: String): String \/ Account = {
+    logger.info(s"Getting account info from Zuora for Account Id: $accountId")
+    val request = buildRequest(config, s"object/account/$accountId").get().build()
+    val call = restClient.newCall(request)
+    val response = call.execute
+    convertResponseToCaseClass[Account](accountId, response)
   }
 
   def getAccountSummary(accountId: String): String \/ AccountSummary = {
@@ -246,6 +274,22 @@ object ZuoraService extends Logging {
     val response = call.execute
     convertResponseToCaseClass[List[UpdateResult]](accountId, response).map(_.head)  match {
       case \/-(result) => if (result.success) { \/-(()) } else { -\/("Zuora result indicated a failure when attempting to clear the default payment method") }
+      case -\/(error) => -\/(error)
+    }
+  }
+
+  def cancelSubscription(accountId: String, subscriptionNumber: String): String \/ Unit = {
+    logInfo(accountId, s"attempting to cancel $subscriptionNumber")
+    val json = Json.obj(
+      "cancellationPolicy" -> "EndOfLastInvoicePeriod",
+      "invoiceCollect" -> false
+    )
+    val body = RequestBody.create(MediaType.parse("application/json"), json.toString)
+    val request = buildRequest(config, s"subscriptions/$subscriptionNumber/cancel").put(body).build()
+    val call = restClient.newCall(request)
+    val response = call.execute
+    convertResponseToCaseClass[CancelResult](accountId, response) match {
+      case \/-(result) => if (result.success) { \/-(()) } else { -\/(s"Zuora result indicated a failure when attempting to cancel subscription $subscriptionNumber") }
       case -\/(error) => -\/(error)
     }
   }

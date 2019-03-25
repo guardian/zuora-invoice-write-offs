@@ -2,11 +2,11 @@
     <contextName>adjuster</contextName>
 
     <appender name="LOGFILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/invoice-helper.log</file>
+        <file>logs/script.log</file>
 
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!-- Daily rollover with compression -->
-            <fileNamePattern>logs/invoice-helper-log-%d{yyyy-MM-dd}.gz</fileNamePattern>
+            <fileNamePattern>logs/script-%d{yyyy-MM-dd}.gz</fileNamePattern>
             <!-- keep 30 days worth of history -->
             <maxHistory>30</maxHistory>
         </rollingPolicy>

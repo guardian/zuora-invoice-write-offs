@@ -11,11 +11,15 @@ trait Logging extends StrictLogging {
   }
 
   def logSuccessfulResult(accountId: String): Unit = {
-    logInfo(accountId, s"SUCCESSFUL invoice item adjustment processing.")
+    logInfo(accountId, s"SUCCESSFUL processing.")
   }
 
   def logFailureResult(accountId: String, errorMessage: String): Unit = {
-    logError(accountId, s"FAILURE during invoice item adjustment processing: $errorMessage")
+    logError(accountId, s"FAILURE processing: $errorMessage")
+  }
+
+  def logSkipResult(accountId: String, skipReason: String): Unit = {
+    logInfo(accountId, s"SKIPPED processing: $skipReason")
   }
 
 }
