@@ -35,7 +35,7 @@ object ZuoraService extends Logging {
 
   case class DefaultPaymentMethod(id: String, paymentMethodType: String)
 
-  case class BasicAccountInfo(id: String, balance: Double, defaultPaymentMethod: DefaultPaymentMethod)
+  case class BasicAccountInfo(id: String, balance: Double, defaultPaymentMethod: Option[DefaultPaymentMethod])
 
   case class AccountSummary(basicInfo: BasicAccountInfo, subscriptions: List[Subscription], success: Boolean)
 
@@ -100,7 +100,7 @@ object ZuoraService extends Logging {
   implicit val basicAccountInfoReads: Reads[BasicAccountInfo] = (
     (JsPath \ "id").read[String] and
     (JsPath \ "balance").read[Double] and
-    (JsPath \ "defaultPaymentMethod").read[DefaultPaymentMethod]
+    (JsPath \ "defaultPaymentMethod").readNullable[DefaultPaymentMethod]
   )(BasicAccountInfo.apply _)
 
   implicit val accountSummaryReads: Reads[AccountSummary] = (
