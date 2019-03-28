@@ -281,7 +281,8 @@ object ZuoraService extends Logging {
   def cancelSubscription(accountId: String, subscriptionNumber: String): String \/ Unit = {
     logInfo(accountId, s"attempting to cancel $subscriptionNumber")
     val json = Json.obj(
-      "cancellationPolicy" -> "EndOfLastInvoicePeriod",
+      "cancellationPolicy" -> "SpecificDate",
+      "cancellationEffectiveDate" -> LocalDate.now(),
       "invoiceCollect" -> false
     )
     val body = RequestBody.create(MediaType.parse("application/json"), json.toString)
