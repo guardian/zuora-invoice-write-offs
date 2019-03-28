@@ -91,7 +91,9 @@ object InvoiceHelper extends App with Logging {
 
   def prepareForPayment(accountId: String) = for {
     account <- getAccountSummary(accountId)
-    reset <- resetFailedPaymentsCounter(accountId, account.basicInfo.defaultPaymentMethod)
+    reset <- account.basicInfo.defaultPaymentMethod.map {
+      paymentMethod => resetFailedPaymentsCounter(accountId, paymentMethod)
+    }.getOrElse(-\/(s"Account has no default payment method so cannot be prepared for payment"))
     autoPay <- turnOnAutoPay(accountId)
   } yield autoPay
 
