@@ -21,3 +21,4 @@ project/boot/
 .cache
 .DS_Store
 *.csv
+.bsp
