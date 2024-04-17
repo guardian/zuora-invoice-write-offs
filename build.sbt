@@ -2,7 +2,7 @@ lazy val root = (project in file("."))
   .settings(
     name := "zuora-invoice-write-offs",
     scalaVersion := "2.13.10",
-    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.7",
+    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.13",
     libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
     libraryDependencies += "io.kontainers" %% "purecsv" % "1.3.10",
     libraryDependencies += "com.squareup.okhttp3" % "okhttp" % "4.10.0",
