@@ -8,5 +8,6 @@ lazy val root = (project in file("."))
     libraryDependencies += "com.squareup.okhttp3" % "okhttp" % "4.10.0",
     libraryDependencies += "org.scalaz" % "scalaz-core_2.12" % "7.2.15",
     libraryDependencies += "com.typesafe.play" %% "play-json" % "2.9.4",
-    dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.14.2", // Fixes Snyk vulnerability alert
+    dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.14.2",
+    dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-core" % "2.17.2",
   )
