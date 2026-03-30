@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **This repo is archived** - the [support-zuora-scripts](https://github.com/guardian/support-zuora-scripts) repo contains a wide variety of scripts and utilities for managing subscriptions, invoices and more.
+
 # Background
 This repo contains scripts which allow you to:
 
